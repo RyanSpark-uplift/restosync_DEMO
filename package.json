@@ -1,0 +1,27 @@
+{
+  "name": "restosync",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:all": "bash scripts/start-dev.sh",
+    "dev:stop": "bash scripts/stop-dev.sh",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "worker": "pnpm --filter @restosync/api run worker",
+    "db:generate": "pnpm --filter @restosync/api run db:generate",
+    "db:migrate": "pnpm --filter @restosync/api run db:migrate"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["sharp"]
+  }
+}

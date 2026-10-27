@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "RestoSync Tablet",
+    "slug": "restosync-tablet",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0B0D16"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0D16"
+      },
+      "package": "com.restosync.tablet"
+    },
+    "scheme": "restosync-tablet",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        { "photosPermission": "Upload menu photos" }
+      ]
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

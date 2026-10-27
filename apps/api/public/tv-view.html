@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="rs-build" content="2026-05-16-themes-inlined" />
+
+  <!-- 12 Google Fonts preloaded per design handoff README. silent-fallback prohibited.
+       Loaded via stylesheet so any theme switch is instant. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@400;500;600;700;800&family=DM+Serif+Display&family=Playfair+Display:wght@400;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Quicksand:wght@500;600;700&family=Lora:wght@500;600;700&family=Cinzel:wght@500;600;700&family=Familjen+Grotesk:wght@500;600;700&display=swap">
+
+  <!-- Theme catalogue: single source of truth in packages/shared/src/themes.ts.
+       Injected inline by the /tv-view route handler at request time, replacing
+       the placeholder below with the JSON-serialised THEMES object. Avoids a
+       second round-trip and stays in sync with themes.ts without a build step. -->
+  <script>
+    /* THEMES_INLINE_PLACEHOLDER */
+    window.RESTOSYNC_THEMES = window.RESTOSYNC_THEMES || {};
+    window.THEME_DEFAULT_COLUMNS = window.THEME_DEFAULT_COLUMNS || {};
+  </script>
+  <title>RestoSync TV Viewer</title>
+  <style>
+    :root {
+      --bg0:#0B0D16; --bg1:#0F1223; --bg2:#161929; --bg3:#1E2238;
+      --t0:#F0F2FF; --t1:#8B90B0; --t2:#4E5375;
+      --brand:#FF4D00; --border:#2A2E4A;
+      --success:#22C55E; --warn:#F59E0B; --error:#EF4444;
+      --ftMenu:#6366F1; --ftPickup:#A855F7; --ftEvent:#F59E0B; --ftAd:#10B981;
+      /* Pickup column theme — matches SingleVenuePickupScreen.tsx */
+      --colPrep:#1e293b; --colExpedite:#422006; --colReady:#14532d;
+      --hdrPrep:#334155; --hdrExpedite:#92400e; --hdrReady:#15803d;
+      --rush:#EF4444; --catering:#F59E0B; --scheduled:#94a3b8;
+      --eta:#FCD34D; --readyNum:#4ade80;
+    }
+    /* High-contrast variant — spec sec.6.2 */
+    .hc { --bg0:#000; --bg1:#000; --bg2:#0a0a0a; --bg3:#111; --border:#fff; }
+
+    * { box-sizing: border-box }
+    html, body { height: 100%; margin: 0; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: var(--bg0); color: var(--t0); overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+    header.app-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 16px; background: var(--bg1); border-bottom: 1px solid var(--border);
+      font-size: 13px; flex: 0 0 auto;
+    }
+    header.app-header .pill { padding: 3px 10px; border-radius: 99px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .pill-pickup { background: var(--ftPickup); color: #fff }
+    .pill-menu   { background: var(--ftMenu);   color: #fff }
+    .pill-event  { background: var(--ftEvent);  color: #fff }
+    .pill-ad     { background: var(--ftAd);     color: #fff }
+    .pill-ai_ads { background: var(--ftAd);     color: #fff }
+    .status { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--t2) }
+    .dot.live { background: var(--success); box-shadow: 0 0 6px var(--success) }
+    .dot.err  { background: var(--error) }
+    main { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+    /* #screen must fill main exactly — without this, .pickup-root's height:100%
+       resolves against an unbounded parent and the card-list never scrolls. */
+    #screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+    /* Setup overlay */
+    .setup {
+      position: absolute; inset: 0; background: rgba(11,13,22,0.95); z-index: 99;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .setup-card {
+      width: 420px; max-height: 90vh; padding: 28px; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+      display: flex; flex-direction: column; gap: 12px; overflow: hidden;
+    }
+    .setup-card .tv-list {
+      flex: 1 1 auto; min-height: 0; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 6px;
+      padding-right: 4px;
+    }
+    .setup-card .tv-row {
+      display: flex; align-items: center; gap: 10px; text-align: left;
+      padding: 8px 10px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; color: var(--t0); font-size: 13px;
+      width: 100%;
+    }
+    .setup-card .tv-row:hover { border-color: var(--brand); }
+    .setup-card .tv-row .ft-pill {
+      padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px; color: #fff;
+    }
+    .setup-card .tv-row .ft-pickup { background: var(--ftPickup); }
+    .setup-card .tv-row .ft-menu   { background: var(--ftMenu); }
+    .setup-card .tv-row .ft-event  { background: var(--ftEvent); }
+    .setup-card .tv-row .ft-ad     { background: var(--ftAd); }
+    .setup-card .tv-row .tv-name   { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .setup-card .tv-row .tv-id     { color: var(--t2); font-variant-numeric: tabular-nums; font-size: 11px; }
+    .setup-card h1 { margin: 0 0 8px; font-size: 20px; }
+    .setup-card label { font-size: 12px; color: var(--t1) }
+    .setup-card input, .setup-card select {
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg3); color: var(--t0); font-size: 14px;
+    }
+    .setup-card button {
+      padding: 12px; border-radius: 8px; border: none; background: var(--brand);
+      color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px;
+    }
+    .setup-card button:hover { filter: brightness(1.1) }
+    .setup-card .hint { font-size: 11px; color: var(--t2) }
+    .setup-card .err { color: var(--error); font-size: 12px; min-height: 14px; }
+
+    /* ── Pickup TV layout (12-theme system — DevGuide handoff) ────────
+       Every theme-varying color reads from CSS variables set by applyTheme().
+       Component sizes derive from the `--big`/`--med` class on the .board root,
+       which is set from theme.columns (2 / 3 / 4). Designed for 1920×1080. */
+    .board {
+      width: 100%; height: 100%;
+      background: var(--th-bg);
+      color: var(--th-text);
+      font-family: var(--th-fontBody);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* TopBar (84px) */
+    .topbar {
+      height: 84px; flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 36px;
+      background: var(--th-bg);
+      border-bottom: 1px solid var(--th-cardBorder);
+    }
+    .topbar .left  { display: flex; align-items: center; gap: 20px; }
+    .topbar .right { display: flex; align-items: center; gap: 36px; }
+    .pickup-chip {
+      background: var(--th-storeChipBg);
+      color: var(--th-storeChipFg);
+      padding: 6px 14px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+      border-radius: var(--th-chipRadius, 999px);
+      font-family: var(--th-fontBody);
+    }
+    .store-mono {
+      color: var(--th-textDim);
+      font-size: 12px; letter-spacing: 0.04em;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+    .store-label {
+      color: var(--th-headTeal);
+      font-family: var(--th-fontDisplay);
+      font-weight: var(--th-weightHead);
+      font-size: 28px;
+      letter-spacing: var(--th-headLetter, 0.04em);
+      text-decoration: var(--th-headDecoration, none);
+      text-underline-offset: 6px;
+      text-decoration-thickness: 1px;
+    }
+    .pickup-label {
+      color: var(--th-textDim);
+      font-size: 15; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      font-family: var(--th-fontBody);
+    }
+    .active-block { display: flex; align-items: baseline; gap: 8px; font-family: var(--th-fontBody); }
+    .active-block .label { color: var(--th-textDim); font-size: 14px; }
+    .active-block .num   { color: var(--th-activeColor); font-size: 22px; font-weight: 800; }
+    .clock {
+      color: var(--th-text);
+      font-size: 28px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-weight: 500; letter-spacing: 0.02em;
+    }
+    .live-pill { display: inline-flex; align-items: center; gap: 6px; color: var(--th-textDim); font-size: 11px; }
+    .live-dot  { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; }
+
+    /* Offline banner / connection state (kept from previous build) */
+    .offline-banner {
+      padding: 6px 24px; background: #451a03;
+      border-bottom: 1px solid #92400e;
+      font-size: 14px; font-weight: 600; color: #fef3c7;
+    }
+    .offline-banner.disc { background: #7f1d1d; border-bottom-color: #dc2626; }
+
+    /* 2 sides flex row */
+    .sides { display: flex; flex: 1; min-height: 0; }
+    .side  { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .side-prep  { background: var(--th-bg); }
+    .side-ready { background: var(--th-bgReady); }
+    .side.big   { padding: 34px 36px; }
+    .side.med   { padding: 26px 28px; }
+    .side.sm    { padding: 26px 28px; }
+
+    /* Section header */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px;
+    }
+    .side.big .section-header { margin-bottom: 22px; }
+    .side.med .section-header,
+    .side.sm  .section-header { margin-bottom: 16px; }
+    .section-title-group { display: flex; align-items: center; gap: 12px; }
+    .section-title {
+      font-family: var(--th-fontDisplay);
+      font-weight: var(--th-weightHead);
+      letter-spacing: var(--th-titleLetter, 0.12em);
+      text-decoration: var(--th-headDecoration, none);
+      text-underline-offset: 6px;
+    }
+    .side.big .section-title { font-size: 30px; }
+    .side.med .section-title,
+    .side.sm  .section-title { font-size: 22px; }
+    .section-title-prep  { color: var(--th-text); }
+    .section-title-ready { color: var(--th-text); }
+    .section-title-ready.on-saturated { color: #f1ede4; }
+
+    .count-pill {
+      padding: 4px 14px; border-radius: 999px;
+      font-weight: 700;
+      font-family: var(--th-fontBody);
+    }
+    .side.big .count-pill { font-size: 16px; }
+    .side.med .count-pill,
+    .side.sm  .count-pill { font-size: 13px; }
+    .count-pill.prep  {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--th-textDim);
+    }
+    .count-pill.ready {
+      background: transparent;
+      border: 1.5px solid var(--th-accentReady);
+      color: var(--th-accentReady);
+    }
+
+    /* Card grid */
+    .grid {
+      display: grid;
+      align-content: start;
+      flex: 1; overflow: hidden;
+    }
+    .side.big .grid { gap: 16px; }
+    .side.med .grid,
+    .side.sm  .grid { gap: 12px; }
+
+    /* Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--th-radius);
+      display: flex; flex-direction: column;
+      font-family: var(--th-fontBody);
+      position: relative;
+      box-shadow: var(--card-shadow, none);
+    }
+    .side.big .card { padding: 22px 28px; gap: 14px; min-height: 200px; }
+    .side.med .card { padding: 18px 22px; gap: 10px; min-height: 150px; }
+    .side.sm  .card { padding: 14px 18px; gap:  8px; min-height: 110px; }
+
+    /* New-order pulse — opacity dip 1.0↔0.35 each second to draw the eye while a
+       card is still within display.new_order_pulse_seconds of created_at. The
+       order:new handler schedules a re-render at pulse expiry so .fresh is
+       cleared without waiting for the 30s tick. */
+    @keyframes pickup-fresh-pulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.35; }
+    }
+    .card.fresh { animation: pickup-fresh-pulse 1s ease-in-out infinite; }
+
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+    .card-num {
+      font-family: var(--th-fontDisplay);
+      font-weight: var(--th-weightNumber);
+      line-height: 0.92;
+      color: var(--card-num);
+      letter-spacing: var(--th-numLetter, -0.02em);
+    }
+    .side.big .card-num { font-size: 96px; }
+    .side.med .card-num { font-size: 68px; }
+    .side.sm  .card-num { font-size: 52px; }
+    .card-num .hash { opacity: 0.55; font-weight: inherit; }
+    .card-icon { margin-top: 6px; display: inline-flex; align-items: center; }
+    .side.big .card-icon { margin-top: 12px; }
+    .card-icon.dim { color: var(--card-textDim); opacity: 0.7; }
+    .card-icon.ready { color: var(--th-accentReady); }
+
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .source-tag, .emp-chip {
+      display: inline-flex; align-items: center;
+      line-height: 1.2;
+      font-family: var(--th-fontBody);
+      border-radius: var(--th-chipRadius2, 3px);
+    }
+    .side.big .source-tag, .side.big .emp-chip { padding: 4px 10px; }
+    .side.med .source-tag, .side.med .emp-chip,
+    .side.sm  .source-tag, .side.sm  .emp-chip { padding: 2px 7px; }
+    .side.big .source-tag { font-size: 13px; }
+    .side.med .source-tag, .side.sm .source-tag { font-size: 11px; }
+    .source-tag { font-weight: 700; letter-spacing: 0.04em; }
+    .side.big .emp-chip { font-size: 12px; }
+    .side.med .emp-chip, .side.sm .emp-chip { font-size: 10.5px; }
+    .emp-chip { font-weight: 600; letter-spacing: 0.06em; }
+
+    .card-meta {
+      display: flex; align-items: baseline; gap: 10px;
+      color: var(--card-textDim);
+      font-weight: 500; letter-spacing: 0.01em;
+    }
+    .side.big .card-meta { font-size: 15px; }
+    .side.med .card-meta { font-size: 13px; }
+    .side.sm  .card-meta { font-size: 11.5px; }
+    .card-meta .status {
+      color: var(--th-statusFg);
+      font-weight: 600;
+    }
+
+    /* Idle (no orders) — minimal, theme-tinted */
+    .idle-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 24px;
+      color: var(--th-textDim);
+    }
+    .idle-state .headline {
+      font-family: var(--th-fontDisplay);
+      font-weight: var(--th-weightHead);
+      font-size: 36px;
+      color: var(--th-headTeal);
+      letter-spacing: var(--th-headLetter, 0.04em);
+      text-decoration: var(--th-headDecoration, none);
+      text-underline-offset: 6px;
+    }
+    .idle-state .body { font-size: 18px; max-width: 600px; text-align: center; }
+
+    /* ── Generic event log (menu / event / ai_ads) ──────────────────── */
+    .log-wrap { padding: 24px; height: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .log-wrap h2 { margin: 0; font-size: 24px; color: var(--t1); }
+    .log {
+      flex: 1; overflow: auto; background: var(--bg2);
+      border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+      font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+      font-size: 12px; line-height: 1.6;
+    }
+    .log .ev { padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; background: var(--bg3); }
+    .log .ev .ts { color: var(--t2); margin-right: 8px; }
+    .log .ev .name { color: var(--brand); font-weight: 700; margin-right: 8px; }
+    .log .ev pre { display: inline; margin: 0; color: var(--t0); white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <span class="pill" id="rolePill">…</span>
+  <span id="storeName">—</span>
+  <span class="status">
+    <span class="dot" id="wsDot"></span>
+    <span id="wsLabel">disconnected</span>
+  </span>
+</header>
+
+<main>
+  <div class="setup" id="setup">
+    <form class="setup-card" onsubmit="event.preventDefault(); doLogin();">
+      <h1>RestoSync TV Viewer</h1>
+      <label>Role</label>
+      <select id="roleSel">
+        <option value="pickup">pickup — Order Ready Display</option>
+        <option value="menu">menu — Menu Board</option>
+        <option value="event">event — Event Board</option>
+        <option value="ai_ads">ai_ads — Ad Display</option>
+      </select>
+      <label>API URL</label>
+      <input id="apiUrl" value="http://localhost:3000" />
+      <label>License Key</label>
+      <input id="licenseKey" value="RS-TEST-0001-AAAA" />
+      <label>PIN</label>
+      <input id="pin" type="password" value="1234" inputmode="numeric" maxlength="6" />
+      <button type="submit">Connect</button>
+      <div class="err" id="setupErr"></div>
+      <div class="hint">Browser-side test viewer. Real Android TV uses apps/tv React Native build.</div>
+    </form>
+  </div>
+
+  <div id="screen"></div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const setup  = $('setup');
+  const screen = $('screen');
+
+  // ── persisted setup ────────────────────────────────────────────────────────
+  const KEY = 'rs_tv_viewer';
+  const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+  if (saved.apiUrl)     $('apiUrl').value     = saved.apiUrl;
+  if (saved.licenseKey) $('licenseKey').value = saved.licenseKey;
+
+  // tv_instance_id pin (per-TV settings override). Resolved after login or via ?tv_id=.
+  let tvInstanceId = null;
+  if (saved.role)       $('roleSel').value    = saved.role;
+
+  const urlParams = new URLSearchParams(location.search);
+  const urlRole = urlParams.get('role');
+  if (urlRole) $('roleSel').value = urlRole;
+  if (urlParams.get('autoconnect') === '1') setTimeout(() => doLogin(), 0);
+
+  // ?tv_id=... overrides any saved pin, useful for kiosk URLs printed on TVs.
+  const urlTvId = urlParams.get('tv_id');
+
+  // ── session state ──────────────────────────────────────────────────────────
+  let ws       = null;
+  let token    = null;
+  let apiUrl   = '';
+  let storeId  = '';
+  let role     = '';
+  let clockId  = null;
+
+  // pickup-only state buckets
+  const state = {
+    storeName: 'KITCHEN',
+    storeSettings: {},
+    buckets: {
+      preparing:  /** @type {Order[]} */ ([]),
+      expediting: /** @type {Order[]} */ ([]),
+      ready:      /** @type {Order[]} */ ([]),
+    },
+    removeTimers: new Map(),
+    // Page cycler — when a bucket has more cards than fit on screen, cycle through
+    // pages so every order gets visible time. Page size adapts to screen height,
+    // interval is configurable via store_settings.display.pickup_page_interval_seconds.
+    pages: { preparing: 0, expediting: 0, ready: 0 },
+  };
+  let PAGE_SIZE = 6;
+  let pageCyclerId = null;
+  let pageCyclerMs = 0;
+
+  // PAGE_SIZE = cards per side. Mirrors the design handoff slotsPerSide formula:
+  //   2 cols → 6   (3 rows)
+  //   3 cols → 12  (4 rows)
+  //   4 cols → 20  (5 rows)
+  function calcPageSize() {
+    const c = typeof getCurrentColumns === 'function' ? getCurrentColumns() : 2;
+    return c * (c <= 2 ? 3 : c === 3 ? 4 : 5);
+  }
+  window.addEventListener('resize', () => {
+    const next = calcPageSize();
+    if (next !== PAGE_SIZE) { PAGE_SIZE = next; renderPickup(); }
+  });
+
+  // ── Login + connect ─────────────────────────────────────────────────────────
+  async function doLogin() {
+    apiUrl     = $('apiUrl').value.trim();
+    const licenseKey = $('licenseKey').value.trim();
+    const pin        = $('pin').value.trim();
+    role             = $('roleSel').value;
+    $('setupErr').textContent = '';
+    try {
+      const sendLicense = licenseKey.replace(/:dev$/, '');
+      const res = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ license_key: sendLicense, pin }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || body.error || res.statusText);
+      }
+      const data = await res.json();
+      token   = data.access_token;
+      storeId = data.user.store_id;
+
+      // Resolve tv_instance_id: URL param > saved > only-matching-instance > picker.
+      await resolveTvInstance(role);
+      if (tvInstanceId === undefined) return; // picker shown, awaiting selection.
+
+      localStorage.setItem(KEY, JSON.stringify({ apiUrl, licenseKey, role, tvInstanceId }));
+      connect();
+    } catch (err) {
+      $('setupErr').textContent = err.message;
+    }
+  }
+
+  // role → tv_instances.function_type
+  const ROLE_TO_FT = { pickup: 'pickup', menu: 'menu', event: 'event', ai_ads: 'ad' };
+
+  async function resolveTvInstance(currentRole) {
+    const ft = ROLE_TO_FT[currentRole];
+    let list = [];
+    try {
+      list = await authFetch('/api/tv-instances');
+    } catch (e) {
+      console.warn('[tv-instances]', e.message);
+      tvInstanceId = null;
+      return;
+    }
+    const candidates = list.filter((r) => r.instance.function_type === ft);
+
+    if (urlTvId && candidates.some((c) => c.instance.id === urlTvId)) {
+      tvInstanceId = urlTvId; return;
+    }
+    if (saved.tvInstanceId && candidates.some((c) => c.instance.id === saved.tvInstanceId)) {
+      tvInstanceId = saved.tvInstanceId; return;
+    }
+    if (candidates.length === 1) { tvInstanceId = candidates[0].instance.id; return; }
+    if (candidates.length === 0) { tvInstanceId = null; return; }
+    // Multiple candidates — prompt user.
+    showTvPicker(candidates, currentRole);
+    tvInstanceId = undefined; // sentinel: picker shown, doLogin should return.
+  }
+
+  function showTvPicker(list, currentRole) {
+    const card = setup.querySelector('.setup-card');
+    const ft = ROLE_TO_FT[currentRole];
+    // Many stores accumulate dozens of dev test instances; the inner list is the only
+    // part that scrolls so the heading and "store default" actions stay reachable.
+    card.innerHTML = `
+      <h1>Select TV Instance</h1>
+      <div class="hint">${list.length} ${ft} TV${list.length === 1 ? '' : 's'} registered. Pick this one to apply its per-TV theme.</div>
+      <input type="text" id="tvFilter" placeholder="Filter by name or id…" autocomplete="off" />
+      <div class="tv-list" id="tvList">
+        ${list.map((r) => `
+          <button type="button" class="tv-row" data-tv="${r.instance.id}" data-search="${escapeHtml((r.instance.display_name || '') + ' ' + r.instance.id).toLowerCase()}">
+            <span class="ft-pill ft-${escapeHtml(r.instance.function_type)}">${escapeHtml(r.instance.function_type)}</span>
+            <span class="tv-name">${escapeHtml(r.instance.display_name || ('TV ' + r.instance.id.slice(0, 8)))}</span>
+            <span class="tv-id">${escapeHtml(r.instance.id.slice(0, 8))}</span>
+          </button>`).join('')}
+      </div>
+      <button type="button" data-tv="">Use store default (no per-TV override)</button>
+    `;
+    card.querySelectorAll('button[data-tv]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        tvInstanceId = btn.dataset.tv || null;
+        localStorage.setItem(KEY, JSON.stringify({ apiUrl, licenseKey, role, tvInstanceId }));
+        connect();
+      });
+    });
+    const filterEl = card.querySelector('#tvFilter');
+    if (filterEl) {
+      filterEl.addEventListener('input', () => {
+        const q = filterEl.value.trim().toLowerCase();
+        card.querySelectorAll('.tv-row').forEach((row) => {
+          row.style.display = !q || row.dataset.search.includes(q) ? '' : 'none';
+        });
+      });
+    }
+  }
+
+  async function connect() {
+    $('rolePill').textContent = role;
+    $('rolePill').className = 'pill pill-' + role;
+    $('storeName').textContent = `store:${storeId.slice(0,8)}…`;
+    setup.style.display = 'none';
+
+    if (role === 'pickup') {
+      // Pull initial state before mounting UI so first render is correct.
+      await Promise.all([loadOrders(), loadStoreSettings()]);
+      renderPickup();
+      startClock();
+    } else {
+      renderLog();
+    }
+
+    const wsBase = apiUrl.replace(/^http/, 'ws');
+    const wsUrl  = new URL(wsBase + '/ws');
+    wsUrl.searchParams.set('store_id',    storeId);
+    wsUrl.searchParams.set('device_type', 'tv');
+    wsUrl.searchParams.set('role',        role);
+    wsUrl.searchParams.set('token',       token);
+    if (tvInstanceId) wsUrl.searchParams.set('tv_instance_id', tvInstanceId);
+    ws = new WebSocket(wsUrl);
+    setStatus('connecting');
+    ws.onopen    = () => setStatus('live');
+    ws.onclose   = () => setStatus('disconnected');
+    ws.onerror   = () => setStatus('error');
+    ws.onmessage = (e) => {
+      try { handleEvent(JSON.parse(e.data)); }
+      catch (err) { console.warn('parse', err); }
+    };
+  }
+
+  // ── REST loaders (Authorization required) ──────────────────────────────────
+  async function authFetch(path) {
+    const res = await fetch(apiUrl + path, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
+    return res.json();
+  }
+  async function loadOrders() {
+    try {
+      const statuses = 'new,prep,ready_to_expedite,ready';
+      const list = await authFetch(`/api/orders?status=${statuses}&limit=100`);
+      state.buckets.preparing  = list.filter((o) => o.status === 'new' || o.status === 'prep');
+      state.buckets.expediting = list.filter((o) => o.status === 'ready_to_expedite');
+      state.buckets.ready      = list.filter((o) => o.status === 'ready');
+    } catch (e) { console.warn('[orders]', e.message); }
+  }
+  async function loadStoreSettings() {
+    try {
+      const data = await authFetch('/api/store_settings');
+      state.storeSettings = data ?? {};
+      if (data?.store_name) state.storeName = data.store_name;
+    } catch (e) { console.warn('[settings]', e.message); }
+  }
+
+  // Resolve a dotted-path setting. If tvInstanceId is pinned, per_tv override wins
+  // over store-wide value. Mirrors resolveTvSettings() in packages/shared/storeSettings.ts.
+  function readSetting(path, fallback) {
+    const segs = path.split('.');
+    if (tvInstanceId) {
+      const ov = pickPath(state.storeSettings?.per_tv?.[tvInstanceId], segs);
+      if (ov !== undefined && ov !== null) return ov;
+    }
+    const v = pickPath(state.storeSettings, segs);
+    return v === undefined || v === null ? fallback : v;
+  }
+  function pickPath(obj, segs) {
+    let cur = obj;
+    for (const seg of segs) {
+      if (!cur || typeof cur !== 'object') return undefined;
+      cur = cur[seg];
+    }
+    return cur;
+  }
+
+  // ── Theme resolution (12-theme system — DevGuide handoff) ──────────────────
+  // Read THEMES via getter — fallback inline script sets window.RESTOSYNC_THEMES
+  // before this script tag, and /api/themes.js overwrites it if the route is up.
+  function getThemes() { return window.RESTOSYNC_THEMES || {}; }
+  function getDefaultCols() { return window.THEME_DEFAULT_COLUMNS || {}; }
+
+  function getCurrentTheme() {
+    const THEMES = getThemes();
+    const key = readSetting('theme.theme_key', 'bistro');
+    const t = THEMES[key] || THEMES.bistro;
+    if (!t) console.error('[applyTheme] no theme found for key', key, '— RESTOSYNC_THEMES empty?');
+    return t;
+  }
+  function getCurrentColumns() {
+    const c = Number(readSetting('theme.columns', 0));
+    if (c === 2 || c === 3 || c === 4) return c;
+    const key = readSetting('theme.theme_key', 'bistro');
+    return getDefaultCols()[key] || 2;
+  }
+  function getStoreLabel()  { return readSetting('theme.storeLabel',  getCurrentTheme().storeLabel  || 'KITCHEN'); }
+  function getPickupLabel() { return readSetting('theme.pickupLabel', getCurrentTheme().pickupLabel || 'ORDER PICKUP'); }
+
+  function hexLum(hex) {
+    if (!hex || hex[0] !== '#') return 128;
+    const c = hex.length === 4 ? hex.slice(1).split('').map(x => x+x).join('') : hex.slice(1);
+    const r = parseInt(c.slice(0,2),16), g = parseInt(c.slice(2,4),16), b = parseInt(c.slice(4,6),16);
+    return r*0.299 + g*0.587 + b*0.114;
+  }
+  function isLightHex(hex) { return hexLum(hex) > 160; }
+
+  // Apply theme tokens to CSS custom properties on the .board element.
+  // Re-run on settings:updated WS. Honors per_tv override automatically via readSetting.
+  function applyTheme() {
+    const theme = getCurrentTheme();
+    if (!theme) return; // fallback inline theme failed too — give up silently
+    const cols  = getCurrentColumns();
+    const isBebas = (theme.fontDisplay || '').includes('Bebas');
+    const root = document.querySelector('.board') || document.documentElement;
+
+    const vars = {
+      '--th-bg':            theme.bg,
+      '--th-bgReady':       theme.bgReady,
+      '--th-cardPrep':      theme.cardPrep,
+      '--th-cardReady':     theme.cardReady,
+      '--th-cardBorder':    theme.cardBorder,
+      '--th-cardBorderReady': theme.cardBorderReady,
+      '--th-text':          theme.text,
+      '--th-textDim':       theme.textDim,
+      '--th-textCard':      theme.textCard || theme.text,
+      '--th-textCardDim':   theme.textCardDim || 'rgba(0,0,0,0.5)',
+      '--th-textNum':       theme.textNum,
+      '--th-textNumReady':  theme.textNumReady || theme.textNum,
+      '--th-headTeal':      theme.headTeal,
+      '--th-accentReady':   theme.accentReady,
+      '--th-activeColor':   theme.activeColor,
+      '--th-statusFg':      theme.statusFg,
+      '--th-storeChipBg':   theme.storeChipBg,
+      '--th-storeChipFg':   theme.storeChipFg,
+      '--th-fontBody':      theme.fontBody,
+      '--th-fontDisplay':   theme.fontDisplay,
+      '--th-weightHead':    String(theme.weightHead),
+      '--th-weightNumber':  String(theme.weightNumber),
+      '--th-radius':        theme.radius + 'px',
+      '--th-chipRadius':    theme.minimal ? '0' : '999px',
+      '--th-chipRadius2':   theme.minimal ? '0' : '3px',
+      '--th-headLetter':    isBebas ? '0.06em' : '0.04em',
+      '--th-titleLetter':   isBebas ? '0.08em' : '0.12em',
+      '--th-numLetter':     isBebas ? '0.02em' : '-0.02em',
+      '--th-headDecoration': theme.underline ? 'underline' : 'none',
+    };
+    Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+    root.setAttribute('data-columns', String(cols));
+    root.setAttribute('data-theme-key', readSetting('theme.theme_key', 'bistro'));
+
+    // Body bg fallback so the canvas color is set even before the inner .board mounts.
+    document.body.style.background = theme.bg;
+  }
+
+  // ── Status pill ────────────────────────────────────────────────────────────
+  function setStatus(s) {
+    $('wsDot').className = 'dot ' + (s === 'live' ? 'live' : s === 'error' ? 'err' : '');
+    $('wsLabel').textContent = s;
+    // also reflect in pickup footer if mounted
+    const fd = document.querySelector('.connection-dot');
+    if (fd) fd.classList.toggle('live', s === 'live');
+    const off = document.getElementById('offlineBanner');
+    if (off) {
+      if (s === 'live') {
+        off.style.display = 'none';
+      } else {
+        off.style.display = 'block';
+        off.classList.toggle('disc', s === 'disconnected' || s === 'error');
+        off.textContent = s === 'connecting'
+          ? '⏳  Reconnecting…'
+          : `⚠  Disconnected — last update ${fmtClock(new Date())}`;
+      }
+    }
+  }
+
+  // ── WS event dispatch ──────────────────────────────────────────────────────
+  function handleEvent(msg) {
+    const ev = msg.event || 'unknown';
+    if (role !== 'pickup') { appendLog(ev, msg.payload); return; }
+    const p = msg.payload || {};
+    switch (ev) {
+      case 'connection:ack':
+        break;
+      case 'order:new': {
+        addOrder(p);
+        renderPickup();
+        schedulePulseExpiryRender();
+        break;
+      }
+      case 'order:status_changed':
+        moveOrder(p.display_number, p.status);
+        renderPickup();
+        schedulePulseExpiryRender();
+        break;
+      case 'display:order_expedite':
+        moveOrder(p.display_number, 'ready_to_expedite');
+        renderPickup();
+        schedulePulseExpiryRender();
+        break;
+      case 'display:order_ready':
+        moveOrder(p.display_number, 'ready');
+        // Server tells us whether to auto-remove and how long to wait. Falls back
+        // to store_settings (cached locally) and finally to the 30s default for
+        // legacy events that don't carry the policy fields.
+        if (shouldAutoRemove(p)) {
+          scheduleRemove(p.display_number, autoRemoveMs(p));
+        }
+        renderPickup();
+        schedulePulseExpiryRender();
+        break;
+      case 'display:order_remove':
+        removeByNumber(p.display_number);
+        renderPickup();
+        break;
+      case 'order:cancelled':
+      case 'order:expired':
+        removeByNumber(p.display_number);
+        renderPickup();
+        break;
+      case 'settings:updated':
+        loadStoreSettings().then(renderPickup);
+        break;
+      case 'display:emergency_message':
+        // surface as a one-time toast via offline banner styling
+        showFlash(p.message || 'Emergency message', 5000);
+        break;
+      // accepted/rejected/undo/remake_started don't directly mutate columns —
+      // status_changed events that accompany them do the real work.
+    }
+  }
+
+  // ── Pulse expiry re-render ────────────────────────────────────────────────
+  // Drop the .fresh class without waiting for the 30s clock tick. Called after
+  // any handler that may have tagged a card with __pulseUntil. Cheap — single
+  // timer per event.
+  function schedulePulseExpiryRender() {
+    const pulseSec = Number(readSetting('display.new_order_pulse_seconds', 5)) || 0;
+    if (pulseSec > 0) setTimeout(renderPickup, pulseSec * 1000 + 200);
+  }
+
+  // ── Bucket helpers ─────────────────────────────────────────────────────────
+  // Tag a card with the moment it landed in its current bucket. cardHtml reads
+  // this to decide whether to apply the .fresh pulse, and jumpToCardPage uses
+  // the post-tag position to flip state.pages to the page that contains it.
+  const PULSE_TAG = '__pulseUntil';
+
+  function tagPulse(order) {
+    const pulseSec = Number(readSetting('display.new_order_pulse_seconds', 5)) || 0;
+    if (pulseSec <= 0) return order;
+    return { ...order, [PULSE_TAG]: Date.now() + pulseSec * 1000 };
+  }
+
+  // True when the currently displayed slice on `sideKey` has any card whose
+  // __pulseUntil is still in the future. Page cycler uses this to hold the page
+  // while a fresh card is mid-blink — never flip away mid-pulse.
+  function currentPageHasActivePulse(sideKey) {
+    const bucket = sideKey === 'preparing'
+      ? [...state.buckets.preparing, ...state.buckets.expediting]
+      : state.buckets.ready;
+    const sorted = rushPinned(bucket);
+    const ps = PAGE_SIZE || calcPageSize();
+    const start = state.pages[sideKey] * ps;
+    const now = Date.now();
+    return sorted.slice(start, start + ps).some((o) => Number(o[PULSE_TAG]) > now);
+  }
+
+  // Flip the cycler page so the card that just landed is visible immediately.
+  // sideKey is 'preparing' or 'ready' — matches the keys advancePagesWithFade uses.
+  function jumpToCardPage(sideKey, orderId) {
+    const bucket = sideKey === 'preparing'
+      ? [...state.buckets.preparing, ...state.buckets.expediting]
+      : state.buckets.ready;
+    const sorted = rushPinned(bucket);
+    const idx = sorted.findIndex((o) => o.id === orderId);
+    if (idx === -1) return;
+    const ps = PAGE_SIZE || calcPageSize();
+    state.pages[sideKey] = Math.floor(idx / ps);
+  }
+
+  function addOrder(order) {
+    const target = bucketFor(order.status);
+    if (!target) return;
+    // dedupe by id
+    for (const k of ['preparing','expediting','ready']) {
+      if (state.buckets[k].some((o) => o.id === order.id)) return;
+    }
+    const tagged = tagPulse(order);
+    state.buckets[target] = [...state.buckets[target], tagged];
+    const side = (target === 'expediting') ? 'preparing' : target;
+    jumpToCardPage(side, tagged.id);
+  }
+  function bucketFor(status) {
+    if (status === 'new' || status === 'prep' || status === 'remaking') return 'preparing';
+    if (status === 'ready_to_expedite')                                  return 'expediting';
+    if (status === 'ready')                                              return 'ready';
+    return null;
+  }
+  function moveOrder(displayNumber, newStatus) {
+    let found = null;
+    for (const k of ['preparing','expediting','ready']) {
+      const idx = state.buckets[k].findIndex((o) => o.display_number === displayNumber);
+      if (idx !== -1) {
+        found = { ...state.buckets[k][idx], status: newStatus };
+        state.buckets[k] = state.buckets[k].filter((_, i) => i !== idx);
+        break;
+      }
+    }
+    if (!found) return;
+    const tgt = bucketFor(newStatus);
+    if (tgt) {
+      const tagged = tagPulse(found);
+      state.buckets[tgt] = [...state.buckets[tgt], tagged];
+      const side = (tgt === 'expediting') ? 'preparing' : tgt;
+      jumpToCardPage(side, tagged.id);
+    }
+    // else: terminal (collected/cancelled/expired) — already removed.
+  }
+  function removeByNumber(displayNumber) {
+    for (const k of ['preparing','expediting','ready']) {
+      state.buckets[k] = state.buckets[k].filter((o) => o.display_number !== displayNumber);
+    }
+    const t = state.removeTimers.get(displayNumber);
+    if (t) { clearTimeout(t); state.removeTimers.delete(displayNumber); }
+  }
+  // ── Ready auto-remove policy ──────────────────────────────────────────────
+  // Both server (display:order_ready payload) and store_settings carry the
+  // policy. Payload wins (server source of truth at the moment of the event),
+  // settings are the fallback for any path that bypasses the payload.
+  function shouldAutoRemove(payload) {
+    if (payload && typeof payload.auto_remove_enabled === 'boolean') {
+      return payload.auto_remove_enabled;
+    }
+    return readSetting('display.ready_auto_remove_enabled', true) !== false;
+  }
+  function autoRemoveMs(payload) {
+    const fromPayload = Number(payload && payload.auto_remove_seconds);
+    if (Number.isFinite(fromPayload) && fromPayload > 0) {
+      return Math.max(5_000, Math.min(600_000, fromPayload * 1000));
+    }
+    const fromSettings = Number(readSetting('display.ready_auto_remove_seconds', 30));
+    if (Number.isFinite(fromSettings) && fromSettings > 0) {
+      return Math.max(5_000, Math.min(600_000, fromSettings * 1000));
+    }
+    return 30_000;
+  }
+
+  function scheduleRemove(displayNumber, ms) {
+    const existing = state.removeTimers.get(displayNumber);
+    if (existing) clearTimeout(existing);
+    state.removeTimers.set(displayNumber, setTimeout(() => {
+      removeByNumber(displayNumber);
+      renderPickup();
+    }, ms));
+  }
+
+  // ── 12-theme pickup render (DevGuide handoff) ──────────────────────────────
+  // No expedite column — design is strictly 2-side. Orders in `ready_to_expedite`
+  // bucket fold into the preparing side and surface "Almost ready" status text.
+
+  function normalizeSource(s) {
+    const t = String(s || '').toLowerCase();
+    if (t === 'pos')         return 'POS';
+    if (t === 'kiosk')       return 'KIOSK';
+    if (t === 'manual')      return 'MANUAL';
+    if (t === 'doordash')    return 'DOORDASH';
+    if (t === 'ubereats')    return 'UBEREATS';
+    if (t === 'grubhub')     return 'GRUBHUB';
+    if (t === 'fantuan')     return 'FANTUAN';
+    if (t === 'hungrypanda') return 'HUNGRYPANDA';
+    return 'MANUAL';
+  }
+
+  // SVG icons. Each uses currentColor so the wrapping span's `color:` flows in.
+  const ICONS = {
+    search:   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>',
+    clock:    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 2"/></svg>',
+    checkBox: '<svg viewBox="0 0 20 20" width="22" height="22" fill="currentColor"><rect width="20" height="20" rx="4"/><path d="M5 10.5L8.5 14 15 7" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    bell:     '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor"><path d="M10 2a4.5 4.5 0 0 0-4.5 4.5V10l-1.5 3h12l-1.5-3V6.5A4.5 4.5 0 0 0 10 2zm-2 13a2 2 0 0 0 4 0H8z"/></svg>',
+    leaf:     '<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor"><path d="M16 3c-7 0-12 5-12 11 0 1.2.3 2.5 1 3.5C8 13 12 9 17 7c-3 4-6 6-10 9 1 .3 2 .5 3 .5 5 0 9-4 9-9 0-2-1-3-3-4.5z"/></svg>',
+    arrow:    '<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 10h12M11 5l5 5-5 5"/></svg>',
+    square:   '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><rect width="16" height="16"/></svg>',
+    dot:      '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><circle cx="8" cy="8" r="5"/></svg>',
+  };
+  function readyMarkerIcon(key) {
+    if (key === 'check')  return ICONS.checkBox;
+    if (key === 'bell')   return ICONS.bell;
+    if (key === 'leaf')   return ICONS.leaf;
+    if (key === 'arrow')  return ICONS.arrow;
+    if (key === 'square') return ICONS.square;
+    return ICONS.dot;
+  }
+
+  // Resolve text/bg tokens for a single card. ready cards spread readyOverrides;
+  // light vs dark detection by hex luminance picks readable text.
+  function cardTokens(themeRaw, ready) {
+    const theme = ready && themeRaw.readyOverrides
+      ? Object.assign({}, themeRaw, themeRaw.readyOverrides)
+      : themeRaw;
+    const bg = ready ? theme.cardReady : theme.cardPrep;
+    const border = ready ? theme.cardBorderReady : theme.cardBorder;
+    const onLight = isLightHex(bg);
+    const text     = onLight ? (theme.textCard || theme.text) : theme.text;
+    const textDim  = onLight ? (theme.textCardDim || 'rgba(0,0,0,0.5)') : theme.textDim;
+    const num      = ready ? (theme.textNumReady || theme.textNum) : theme.textNum;
+    const empBg    = onLight ? 'rgba(0,0,0,0.06)' : theme.empChipBg;
+    const empFg    = onLight ? (theme.textCardDim || 'rgba(0,0,0,0.7)') : theme.empChipFg;
+    return { theme, bg, border, text, textDim, num, empBg, empFg, onLight };
+  }
+
+  function sourceTagHtml(src, theme, big) {
+    const bg = theme.src[src];
+    const fg = theme.srcFg[src];
+    return `<span class="source-tag" style="background:${bg};color:${fg}">${src}</span>`;
+  }
+  function empChipHtml(emp, tokens, big) {
+    if (!emp) return '';
+    return `<span class="emp-chip" style="background:${tokens.empBg};color:${tokens.empFg}">${escapeHtml(emp)}</span>`;
+  }
+
+  function cardHtml(order, ready) {
+    const theme = getCurrentTheme();
+    const k = cardTokens(theme, ready);
+    const src = normalizeSource(order.source);
+    const num = String(order.display_number || order.n || '');
+    const numClean = num.replace(/^#/, '');
+    const emp = order.customer_name || order.emp || null;
+    // Pulse expires when __pulseUntil < now. The tag is set by addOrder /
+    // moveOrder when the card lands in its current bucket — so a prep→ready
+    // transition pulses again in the READY column, even if created_at is old.
+    const pulseUntil = Number(order[PULSE_TAG]) || 0;
+    const isFresh = pulseUntil > Date.now();
+    const freshClass = isFresh ? ' fresh' : '';
+    return `
+      <div class="card${freshClass}" style="--card-bg:${k.bg};--card-border:${k.border};--card-num:${k.num};--card-textDim:${k.textDim}${k.onLight ? ';box-shadow:0 1px 0 rgba(0,0,0,0.04)' : ''}">
+        <div class="card-top">
+          <div class="card-num">${escapeHtml(numClean)}</div>
+          ${ready
+            ? `<span class="card-icon ready">${readyMarkerIcon(theme.readyIcon)}</span>`
+            : `<span class="card-icon dim">${ICONS.search}</span>`}
+        </div>
+        <div class="chips">
+          ${sourceTagHtml(src, theme)}
+          ${empChipHtml(emp, k)}
+        </div>
+        <div class="card-meta" style="color:${k.textDim}">
+          <span>${escapeHtml(timeAgo(order.created_at))}</span>
+          ${!ready ? `<span class="status">Almost ready</span>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function sectionHeaderHtml(kind, count) {
+    const theme = getCurrentTheme();
+    const ready = kind === 'ready';
+    const title = ready ? 'READY FOR PICKUP' : 'PREPARING';
+    const iconColor = ready ? theme.accentReady : theme.textDim;
+    const icon = ready ? ICONS.checkBox : ICONS.clock;
+    // For ready titles on saturated dark bgReady, prefer cream text.
+    const bgReadyLight = isLightHex(theme.bgReady);
+    const titleClass = ready && !bgReadyLight ? 'section-title section-title-ready on-saturated' : (ready ? 'section-title section-title-ready' : 'section-title section-title-prep');
+    return `
+      <div class="section-header">
+        <div class="section-title-group">
+          <span style="color:${iconColor};display:inline-flex">${icon}</span>
+          <span class="${titleClass}">${title}</span>
+        </div>
+        <span class="count-pill ${ready ? 'ready' : 'prep'}">${count}</span>
+      </div>`;
+  }
+
+  function topBarHtml(activeCount) {
+    const theme   = getCurrentTheme();
+    const storeLabel  = getStoreLabel();
+    const pickupLabel = getPickupLabel();
+    return `
+      <div class="topbar">
+        <div class="left">
+          <span class="pickup-chip">PICKUP</span>
+          <span class="store-mono">store:${escapeHtml(storeId.slice(0,8))}…</span>
+        </div>
+        <div class="right">
+          <div style="display:flex;align-items:baseline;gap:14px">
+            <span class="store-label">${escapeHtml(storeLabel)}</span>
+            <span class="pickup-label">${escapeHtml(pickupLabel)}</span>
+          </div>
+          <div class="active-block">
+            <span class="label">Active:</span>
+            <span class="num" id="activeCountNum">${activeCount}</span>
+          </div>
+          <div class="clock" id="clockText">${fmtClock(new Date())}</div>
+          <span class="live-pill">
+            <span class="live-dot"></span>live
+          </span>
+        </div>
+      </div>`;
+  }
+
+  function sideHtml(kind, orders, count, columns) {
+    const sizeClass = columns <= 2 ? 'big' : columns === 3 ? 'med' : 'sm';
+    const ready = kind === 'ready';
+    const sideClass = ready ? 'side-ready' : 'side-prep';
+    const grid = orders.map((o) => cardHtml(o, ready)).join('');
+    // data-bucket lets advancePagesWithFade fade only the side that's actually
+    // paginating, instead of dimming both columns on every interval tick.
+    return `
+      <div class="side ${sizeClass} ${sideClass}">
+        ${sectionHeaderHtml(kind, count)}
+        <div class="grid" data-bucket="${kind}" style="grid-template-columns: repeat(${columns}, 1fr)">${grid}</div>
+      </div>`;
+  }
+
+  function renderPickup() {
+    PAGE_SIZE = calcPageSize();
+    startPageCycler();
+    applyTheme();
+
+    const columns = getCurrentColumns();
+
+    // Fold expediting into preparing (design is 2-side, not 3-column).
+    const allPrep = [...state.buckets.preparing, ...state.buckets.expediting];
+    const prepShown  = pageSlice('preparing', rushPinned(allPrep));
+    const readyShown = pageSlice('ready', rushPinned(state.buckets.ready));
+
+    const totalActive = allPrep.length + state.buckets.ready.length;
+
+    if (totalActive === 0) {
+      screen.innerHTML = `
+        <div class="board">
+          ${topBarHtml(0)}
+          <div id="offlineBanner" class="offline-banner" style="display:none;"></div>
+          <div class="idle-state">
+            <div class="headline">${escapeHtml(getStoreLabel())}</div>
+            <div class="body">No active orders</div>
+          </div>
+        </div>`;
+      applyTheme();
+      return;
+    }
+
+    screen.innerHTML = `
+      <div class="board">
+        ${topBarHtml(totalActive)}
+        <div id="offlineBanner" class="offline-banner" style="display:none;"></div>
+        <div class="sides">
+          ${sideHtml('prep',  prepShown,  allPrep.length,           columns)}
+          ${sideHtml('ready', readyShown, state.buckets.ready.length, columns)}
+        </div>
+      </div>`;
+    applyTheme();
+  }
+
+  function pageSlice(bucketKey, sorted) {
+    if (sorted.length <= PAGE_SIZE) {
+      state.pages[bucketKey] = 0;
+      return sorted;
+    }
+    const pageCount = Math.ceil(sorted.length / PAGE_SIZE);
+    const idx = state.pages[bucketKey] % pageCount;
+    const start = idx * PAGE_SIZE;
+    return sorted.slice(start, start + PAGE_SIZE);
+  }
+
+  function pageInfo(bucketKey, total) {
+    if (total <= PAGE_SIZE) return null;
+    const pageCount = Math.ceil(total / PAGE_SIZE);
+    const idx = state.pages[bucketKey] % pageCount;
+    return { idx, pageCount };
+  }
+
+  function pageBadgeHtml(bucketKey, total) {
+    const info = pageInfo(bucketKey, total);
+    if (!info) return `<span class="count-badge">${total}</span>`;
+    return `<span class="count-badge">${total}</span>
+            <span class="page-badge">${info.idx + 1}/${info.pageCount}</span>`;
+  }
+
+  function getPageIntervalMs() {
+    const seconds = Number(readSetting('display.pickup_page_interval_seconds', 5));
+    if (!Number.isFinite(seconds)) return 5000;
+    return Math.max(2000, Math.min(30000, seconds * 1000));
+  }
+
+  function startPageCycler() {
+    const ms = getPageIntervalMs();
+    if (pageCyclerId && pageCyclerMs === ms) return;
+    if (pageCyclerId) clearInterval(pageCyclerId);
+    pageCyclerMs = ms;
+    pageCyclerId = setInterval(advancePagesWithFade, ms);
+  }
+
+  function advancePagesWithFade() {
+    // Layout is two-side (PREPARING folds expediting in, READY stays alone).
+    // Decide per-side whether the displayed slice actually needs to flip — only
+    // those sides fade. The other side stays steady so static contents don't
+    // dim on every tick.
+    const sides = [
+      { key: 'preparing', grid: 'prep',
+        total: state.buckets.preparing.length + state.buckets.expediting.length },
+      { key: 'ready',     grid: 'ready',
+        total: state.buckets.ready.length },
+    ];
+    const advancing = [];
+    for (const side of sides) {
+      // Hold the page while a card on it is still pulsing — never flip away
+      // from a fresh order mid-blink.
+      if (currentPageHasActivePulse(side.key)) continue;
+      if (side.total > PAGE_SIZE) {
+        const pageCount = Math.ceil(side.total / PAGE_SIZE);
+        const next = (state.pages[side.key] + 1) % pageCount;
+        if (next !== state.pages[side.key]) advancing.push({ ...side, next });
+      } else if (state.pages[side.key] !== 0) {
+        state.pages[side.key] = 0;
+      }
+    }
+    if (advancing.length === 0) return;
+
+    const animsEnabled = readSetting('display.animations_enabled', true);
+    const targets = advancing
+      .map((a) => document.querySelector(`.grid[data-bucket="${a.grid}"]`))
+      .filter(Boolean);
+
+    if (!animsEnabled || targets.length === 0 || !targets[0].animate) {
+      advancing.forEach((a) => { state.pages[a.key] = a.next; });
+      renderPickup();
+      return;
+    }
+
+    const fadeOut = targets.map((el) =>
+      el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: 'forwards', easing: 'ease-out' })
+    );
+    Promise.all(fadeOut.map((a) => a.finished)).then(() => {
+      advancing.forEach((a) => { state.pages[a.key] = a.next; });
+      renderPickup();
+      requestAnimationFrame(() => {
+        advancing.forEach((a) => {
+          const el = document.querySelector(`.grid[data-bucket="${a.grid}"]`);
+          if (el && el.animate) {
+            el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350, easing: 'ease-in' });
+          }
+        });
+      });
+    });
+  }
+
+  function rushPinned(orders) {
+    // Newest-first within each priority bucket — staff want the latest manual
+    // entry up top so a freshly typed number is always visible without paging.
+    // Rush still pinned ahead of normal regardless of age (spec sec.18.2).
+    return [...orders].sort((a, b) => {
+      const ra = a.priority === 'rush' ? 0 : 1;
+      const rb = b.priority === 'rush' ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      return (b.created_at || '').localeCompare(a.created_at || '');
+    });
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+    if (mins < 1) return 'Just now';
+    if (mins === 1) return '1 min ago';
+    return `${mins} min ago`;
+  }
+
+  function etaRange(order, bufferMin) {
+    if (!order.estimated_prep_minutes || !order.created_at) return null;
+    const elapsed = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60_000);
+    const remaining = order.estimated_prep_minutes - elapsed;
+    if (remaining <= 0) return 'Almost ready';
+    const lo = Math.max(1, remaining - bufferMin);
+    const hi = remaining + bufferMin;
+    return lo === hi ? `~${lo} min` : `${lo}-${hi} min`;
+  }
+
+  function startClock() {
+    if (clockId) clearInterval(clockId);
+    clockId = setInterval(() => {
+      const el = document.getElementById('clockText');
+      if (el) el.textContent = fmtClock(new Date());
+      // re-render every 30s so timeAgo / etaRange tick forward
+      if (Math.floor(Date.now() / 1000) % 30 === 0) renderPickup();
+    }, 1000);
+  }
+  function fmtClock(d) {
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  function showFlash(text, ms) {
+    const off = document.getElementById('offlineBanner');
+    if (!off) { alert(text); return; }
+    off.textContent = '🚨  ' + text;
+    off.classList.add('disc');
+    off.style.display = 'block';
+    setTimeout(() => { off.style.display = 'none'; }, ms);
+  }
+
+  // ── Generic event log (menu / event / ai_ads) ───────────────────────────
+  function renderLog() {
+    screen.innerHTML = `
+      <div class="log-wrap">
+        <h2>${role.toUpperCase()} channel — event log</h2>
+        <div class="log" id="log"></div>
+      </div>`;
+  }
+  function appendLog(name, payload) {
+    const log = $('log');
+    if (!log) return;
+    const div = document.createElement('div');
+    div.className = 'ev';
+    const ts = new Date().toLocaleTimeString();
+    div.innerHTML = `<span class="ts">${ts}</span><span class="name">${escapeHtml(name)}</span><pre>${escapeHtml(JSON.stringify(payload ?? {}, null, 2))}</pre>`;
+    log.prepend(div);
+    while (log.childNodes.length > 100) log.removeChild(log.lastChild);
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+</script>
+
+</body>
+</html>

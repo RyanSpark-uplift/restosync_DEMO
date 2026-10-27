@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Order Pickup Display — RestoSync</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:            #0f172a;
+      --col-prep:      #1e293b;
+      --col-ready:     #14532d;
+      --border-prep:   #334155;
+      --border-ready:  #15803d;
+      --text:          #f1f5f9;
+      --text-muted:    #94a3b8;
+      --accent:        #E8450A;
+      --card-num:      #f8fafc;
+      --badge-manual:  #ea580c;
+      --badge-grubhub: #dc2626;
+      --badge-doordash:#7c3aed;
+      --badge-ubereats:#16a34a;
+      --badge-fantuan: #0891b2;
+      --badge-hungry:  #d97706;
+      font-size: 16px;
+    }
+    html, body {
+      width: 1920px; min-height: 1080px;
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden; user-select: none;
+    }
+
+    /* ── Utility ──────────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .center { display: flex; align-items: center; justify-content: center; flex-direction: column; }
+
+    /* ── Spinner ──────────────────────────────────────────────────────── */
+    .spinner {
+      width: 72px; height: 72px;
+      border: 6px solid #334155;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Views ────────────────────────────────────────────────────────── */
+    .view { width: 1920px; min-height: 1080px; }
+
+    /* Pairing View */
+    #view-pairing {
+      background: var(--bg);
+      gap: 32px; padding: 80px;
+    }
+    #view-pairing h1 { font-size: 48px; font-weight: 700; color: var(--accent); }
+    #view-pairing p  { font-size: 24px; color: var(--text-muted); margin-top: 8px; }
+    .pair-form { display: flex; flex-direction: column; gap: 20px; margin-top: 40px; width: 480px; }
+    .pair-form label { font-size: 18px; color: var(--text-muted); }
+    .pair-form input {
+      background: #1e293b; border: 2px solid #334155; border-radius: 12px;
+      color: var(--text); font-size: 22px; padding: 16px 20px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .pair-form input:focus { border-color: var(--accent); }
+    .pair-form input#code-input {
+      font-size: 40px; letter-spacing: 12px; text-align: center; font-weight: 700;
+    }
+    .btn-primary {
+      background: var(--accent); color: white; border: none;
+      border-radius: 12px; font-size: 22px; font-weight: 600;
+      padding: 18px; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; }
+    #pair-error { color: #f87171; font-size: 18px; text-align: center; }
+
+    /* Loading View */
+    #view-loading { gap: 24px; }
+    #view-loading p { font-size: 28px; color: var(--text-muted); margin-top: 16px; }
+
+    /* Main View */
+    #view-main { display: flex; flex-direction: column; height: 1080px; }
+
+    /* Header */
+    #header {
+      background: #0a0f1e;
+      border-bottom: 3px solid var(--accent);
+      height: 86px; padding: 0 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #header-left { display: flex; align-items: center; gap: 24px; }
+    #restaurant-name { font-size: 30px; font-weight: 800; color: var(--accent); letter-spacing: 1px; }
+    #header-title { font-size: 22px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 3px; }
+    #header-right { display: flex; align-items: center; gap: 40px; }
+    #active-count { font-size: 22px; color: var(--text-muted); }
+    #active-count span { color: #34d399; font-weight: 700; font-size: 28px; }
+    #clock { font-size: 32px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+    /* Columns */
+    #columns { display: flex; flex: 1; gap: 0; overflow: hidden; }
+    .column {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 24px 28px; overflow: hidden;
+    }
+    #col-preparing { background: var(--col-prep); border-right: 2px solid #0f172a; }
+    #col-ready     { background: var(--col-ready); }
+    .col-header {
+      display: flex; align-items: center; gap: 12px;
+      padding-bottom: 20px; border-bottom: 2px solid;
+      margin-bottom: 20px; flex-shrink: 0;
+    }
+    #col-preparing .col-header { border-color: var(--border-prep); }
+    #col-ready     .col-header { border-color: var(--border-ready); }
+    .col-title { font-size: 26px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+    .col-count {
+      background: #0f172a; border-radius: 20px;
+      padding: 4px 14px; font-size: 18px; font-weight: 600; color: var(--text-muted);
+    }
+    .col-cards { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; flex: 1; }
+    .col-cards::-webkit-scrollbar { width: 4px; }
+    .col-cards::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      opacity: 0.4;
+    }
+    .empty-icon { font-size: 64px; }
+    .empty-text { font-size: 22px; color: var(--text-muted); }
+
+    /* Order Cards */
+    .order-card {
+      background: #0f172a; border-radius: 16px;
+      padding: 20px 24px;
+      border-left: 6px solid var(--border-prep);
+      display: flex; align-items: center; justify-content: space-between;
+      min-height: 100px; flex-shrink: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+    .order-card.card-ready {
+      background: #052e16;
+      border-left-color: #15803d;
+      animation: flash 700ms ease-in-out infinite;
+    }
+    .order-card.card-removing {
+      animation: fadeOut 3s forwards;
+      pointer-events: none;
+    }
+    @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    @keyframes fadeOut { 0%{opacity:1} 100%{opacity:0; transform:scale(0.95)} }
+
+    .card-left { display: flex; flex-direction: column; gap: 8px; }
+    .card-number { font-size: 72px; font-weight: 900; color: var(--card-num); line-height: 1; }
+    .card-ready .card-number { color: #4ade80; }
+    .card-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      border-radius: 6px; padding: 4px 12px;
+      font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .badge-manual   { background: var(--badge-manual); }
+    .badge-grubhub  { background: var(--badge-grubhub); }
+    .badge-doordash { background: var(--badge-doordash); }
+    .badge-ubereats { background: var(--badge-ubereats); }
+    .badge-fantuan  { background: var(--badge-fantuan); }
+    .badge-hungrypanda { background: var(--badge-hungry); }
+    .badge-default  { background: #475569; }
+    .card-time { font-size: 15px; color: var(--text-muted); }
+    .card-right { font-size: 48px; }
+
+    /* Error Overlay */
+    #overlay-error {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      gap: 24px; padding: 48px;
+    }
+    #overlay-error h2 { font-size: 40px; color: #f87171; }
+    #overlay-error p  { font-size: 22px; color: var(--text-muted); text-align: center; max-width: 640px; }
+    #btn-retry {
+      background: #1e293b; color: var(--text);
+      border: 2px solid #475569; border-radius: 12px;
+      font-size: 20px; padding: 14px 36px; cursor: pointer;
+      margin-top: 16px; transition: border-color 0.2s;
+    }
+    #btn-retry:hover { border-color: var(--accent); }
+
+    /* Offline Banner */
+    #banner-offline {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #7c2d12; padding: 14px 48px;
+      font-size: 20px; text-align: center; z-index: 50;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+    #retry-countdown { font-weight: 700; color: #fbbf24; }
+
+    /* Settings button (top-right corner in main view) */
+    #btn-settings {
+      position: fixed; top: 16px; right: 16px;
+      background: transparent; border: 1px solid #334155;
+      color: var(--text-muted); border-radius: 8px;
+      font-size: 13px; padding: 6px 14px; cursor: pointer; z-index: 200;
+      opacity: 0.4; transition: opacity 0.2s;
+    }
+    #btn-settings:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ── Pairing View ─────────────────────────────────────────────────── -->
+<div id="view-pairing" class="view center">
+  <h1>📺 RestoSync TV Setup</h1>
+  <p>Enter the 6-digit pairing code from your tablet to connect.</p>
+  <div class="pair-form">
+    <div>
+      <label for="api-url-input">API Server URL</label>
+      <input type="text" id="api-url-input" placeholder="http://localhost:3000" autocomplete="off">
+    </div>
+    <div>
+      <label for="code-input">Pairing Code</label>
+      <input type="text" id="code-input" maxlength="6" placeholder="000000"
+             inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+    </div>
+    <div id="pair-error"></div>
+    <button class="btn-primary" id="btn-claim">Connect TV</button>
+  </div>
+</div>
+
+<!-- ── Loading View ─────────────────────────────────────────────────── -->
+<div id="view-loading" class="view center hidden">
+  <div class="spinner"></div>
+  <p id="loading-msg">Connecting to server...</p>
+</div>
+
+<!-- ── Main View ───────────────────────────────────────────────────── -->
+<div id="view-main" class="hidden">
+  <div id="header">
+    <div id="header-left">
+      <div id="restaurant-name">KITCHEN</div>
+      <div id="header-title">Order Pickup</div>
+    </div>
+    <div id="header-right">
+      <div id="active-count">Active: <span id="active-num">0</span></div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </div>
+  <div id="columns">
+    <div class="column" id="col-preparing">
+      <div class="col-header">
+        <span class="col-title">🕐 Preparing</span>
+        <span class="col-count" id="prep-count">0</span>
+      </div>
+      <div class="col-cards" id="prep-cards"></div>
+    </div>
+    <div class="column" id="col-ready">
+      <div class="col-header">
+        <span class="col-title">✅ Ready for Pickup</span>
+        <span class="col-count" id="ready-count">0</span>
+      </div>
+      <div class="col-cards" id="ready-cards"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Error Overlay ───────────────────────────────────────────────── -->
+<div id="overlay-error" class="center hidden">
+  <h2>⚠️ Connection Lost</h2>
+  <p id="error-msg">Unable to connect to the server. Check your network and API URL.</p>
+  <button id="btn-retry">Retry Connection</button>
+  <button id="btn-reset" style="background:transparent;border:none;color:#64748b;font-size:16px;margin-top:12px;cursor:pointer;">
+    Reset & Re-pair
+  </button>
+</div>
+
+<!-- ── Offline Banner ─────────────────────────────────────────────── -->
+<div id="banner-offline" class="hidden">
+  📡 Reconnecting to server...
+  <span id="retry-countdown"></span>
+</div>
+
+<!-- ── Settings Button ────────────────────────────────────────────── -->
+<button id="btn-settings" class="hidden">⚙ Reset</button>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════════════════
+const LS_KEYS = {
+  apiUrl:      'rs_api_url',
+  storeId:     'rs_store_id',
+  screenId:    'rs_screen_id',
+  deviceToken: 'rs_device_token',
+  role:        'rs_role',
+  screenName:  'rs_screen_name',
+};
+
+function loadConfig() {
+  const apiUrl      = localStorage.getItem(LS_KEYS.apiUrl);
+  const storeId     = localStorage.getItem(LS_KEYS.storeId);
+  const screenId    = localStorage.getItem(LS_KEYS.screenId);
+  const deviceToken = localStorage.getItem(LS_KEYS.deviceToken);
+  const role        = localStorage.getItem(LS_KEYS.role);
+  const screenName  = localStorage.getItem(LS_KEYS.screenName);
+  if (!apiUrl || !storeId || !deviceToken) return null;
+  return { apiUrl, storeId, screenId, deviceToken, role, screenName };
+}
+
+function saveConfig(cfg) {
+  localStorage.setItem(LS_KEYS.apiUrl,      cfg.apiUrl);
+  localStorage.setItem(LS_KEYS.storeId,     cfg.storeId);
+  localStorage.setItem(LS_KEYS.screenId,    cfg.screenId);
+  localStorage.setItem(LS_KEYS.deviceToken, cfg.deviceToken);
+  localStorage.setItem(LS_KEYS.role,        cfg.role);
+  localStorage.setItem(LS_KEYS.screenName,  cfg.screenName || '');
+}
+
+function clearConfig() {
+  Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  STATE  (ANTI-M02-002: 전체 보관, 화면만 slice)
+// ════════════════════════════════════════════════════════════════════
+const state = {
+  preparing: [],   // Order[]
+  ready:     [],   // Order[]
+  config:    null,
+  retryCount: 0,
+  retryTimer: null,
+};
+const removeTimers = new Map(); // display_number → setTimeout id
+
+// ════════════════════════════════════════════════════════════════════
+//  VIEW SWITCHING
+// ════════════════════════════════════════════════════════════════════
+function showView(id) {
+  ['view-pairing','view-loading','view-main','overlay-error'].forEach(v => {
+    document.getElementById(v).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function showOfflineBanner(secondsLeft) {
+  const banner = document.getElementById('banner-offline');
+  banner.classList.remove('hidden');
+  document.getElementById('retry-countdown').textContent =
+    secondsLeft ? `Retry in ${secondsLeft}s` : '';
+}
+function hideOfflineBanner() {
+  document.getElementById('banner-offline').classList.add('hidden');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════════════════════
+function sourceBadgeClass(source) {
+  const map = { manual:'manual', grubhub:'grubhub', doordash:'doordash',
+                ubereats:'ubereats', fantuan:'fantuan', hungrypanda:'hungrypanda' };
+  return map[source] ? `badge-${map[source]}` : 'badge-default';
+}
+
+function timeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diff < 1) return 'Just now';
+  if (diff === 1) return '1 min ago';
+  return `${diff} min ago`;
+}
+
+function makeCard(order, isReady) {
+  const div = document.createElement('div');
+  div.className = 'order-card' + (isReady ? ' card-ready' : '');
+  div.id = `card-${order.display_number}`;
+  div.innerHTML = `
+    <div class="card-left">
+      <div class="card-number">${order.display_number}</div>
+      <div class="card-badges">
+        <span class="badge ${sourceBadgeClass(order.source)}">${order.source || 'manual'}</span>
+        ${order.customer_name ? `<span class="badge badge-default">${order.customer_name}</span>` : ''}
+      </div>
+      <div class="card-time">${timeAgo(order.created_at)}</div>
+    </div>
+    <div class="card-right">${isReady ? '✅' : '🍳'}</div>
+  `;
+  return div;
+}
+
+function makeEmptyState(msg) {
+  const div = document.createElement('div');
+  div.className = 'empty-state';
+  div.innerHTML = `<div class="empty-icon">🍽️</div><div class="empty-text">${msg}</div>`;
+  return div;
+}
+
+function render() {
+  const prepCards  = document.getElementById('prep-cards');
+  const readyCards = document.getElementById('ready-cards');
+  const prepCount  = document.getElementById('prep-count');
+  const readyCount = document.getElementById('ready-count');
+  const activeNum  = document.getElementById('active-num');
+
+  // ANTI-M02-002: state 전체 보관, 화면 slice(-8)만
+  const displayPrep  = state.preparing.slice(-8);
+  const displayReady = state.ready.slice(-8);
+
+  prepCount.textContent  = state.preparing.length;
+  readyCount.textContent = state.ready.length;
+  activeNum.textContent  = state.preparing.length + state.ready.length;
+
+  // Preparing column
+  prepCards.innerHTML = '';
+  if (displayPrep.length === 0) {
+    prepCards.appendChild(makeEmptyState('No orders preparing'));
+  } else {
+    displayPrep.forEach(o => prepCards.appendChild(makeCard(o, false)));
+  }
+
+  // Ready column
+  readyCards.innerHTML = '';
+  if (displayReady.length === 0) {
+    readyCards.appendChild(makeEmptyState('No orders ready yet'));
+  } else {
+    displayReady.forEach(o => readyCards.appendChild(makeCard(o, true)));
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  STATE MUTATIONS
+// ════════════════════════════════════════════════════════════════════
+function addOrder(order) {
+  if (state.preparing.find(o => o.id === order.id)) return; // 중복 방지
+  if (state.ready.find(o => o.id === order.id)) return;
+  state.preparing.push(order);
+  render();
+}
+
+function handleStatusChange(payload) {
+  const { status, display_number } = payload;
+  if (status === 'ready') {
+    markReady(display_number);
+  } else if (status === 'collected' || status === 'cancelled') {
+    removeOrder(display_number);
+  }
+}
+
+function markReady(displayNumber) {
+  const idx = state.preparing.findIndex(o => o.display_number === displayNumber);
+  if (idx === -1) return;
+  const [order] = state.preparing.splice(idx, 1);
+  state.ready.push({ ...order, status: 'ready' });
+  render();
+}
+
+function removeOrder(displayNumber) {
+  // fade-out 애니메이션 후 제거
+  const card = document.getElementById(`card-${displayNumber}`);
+  if (card) {
+    card.classList.add('card-removing');
+    setTimeout(() => {
+      state.ready = state.ready.filter(o => o.display_number !== displayNumber);
+      render();
+    }, 3000);
+  } else {
+    state.ready = state.ready.filter(o => o.display_number !== displayNumber);
+    state.preparing = state.preparing.filter(o => o.display_number !== displayNumber);
+    render();
+  }
+  clearTimer(displayNumber);
+}
+
+function cancelOrder(displayNumber) {
+  state.preparing = state.preparing.filter(o => o.display_number !== displayNumber);
+  state.ready     = state.ready.filter(o => o.display_number !== displayNumber);
+  render();
+  clearTimer(displayNumber);
+}
+
+function scheduleRemove(displayNumber, ms) {
+  clearTimer(displayNumber);
+  const id = setTimeout(() => removeOrder(displayNumber), ms);
+  removeTimers.set(displayNumber, id);
+}
+
+function clearTimer(displayNumber) {
+  if (removeTimers.has(displayNumber)) {
+    clearTimeout(removeTimers.get(displayNumber));
+    removeTimers.delete(displayNumber);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  TTS (AG-007: onerror 콜백 패턴, Web Speech API)
+// ════════════════════════════════════════════════════════════════════
+function speak(text) {
+  const synth = window.speechSynthesis;
+  if (!synth) { playFallback(); return; }
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.9;
+  u.lang = 'en-US';
+  u.onerror = () => playFallback();  // AG-007: onError 콜백 (try/await 금지)
+  synth.speak(u);
+}
+
+function playFallback() {
+  try {
+    const a = new Audio('/audio/order-ready.mp3');
+    a.play().catch(() => {});
+  } catch (_) {}
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  FETCH CURRENT ORDERS (WS 연결 후 초기 상태 동기화)
+// ════════════════════════════════════════════════════════════════════
+async function fetchCurrentOrders() {
+  const { apiUrl, deviceToken } = state.config;
+  try {
+    const res = await fetch(
+      `${apiUrl}/api/orders?status=pending,preparing,ready&limit=100`,
+      { headers: { Authorization: `Bearer ${deviceToken}` } }
+    );
+    if (!res.ok) return;
+    const orders = await res.json();
+    state.preparing = orders.filter(o => ['pending','preparing'].includes(o.status));
+    state.ready     = orders.filter(o => o.status === 'ready');
+    // 이미 ready인 주문들은 30초 타이머 스킵 (서버가 display:order_remove로 관리)
+    render();
+  } catch (_) {}
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  WEBSOCKET (AG-002 자동재연결, AG-003 이벤트명)
+// ════════════════════════════════════════════════════════════════════
+let wsRef = null;
+let heartbeatInterval = null;
+let retryTimeout = null;
+
+function connectWS() {
+  const { config } = state;
+  if (!config) return;
+
+  const wsUrl = config.apiUrl.replace(/^http/, 'ws');
+  const url = `${wsUrl}/ws?store_id=${encodeURIComponent(config.storeId)}`
+    + `&device_type=tv&role=pickup`
+    + `&token=${encodeURIComponent(config.deviceToken)}`;
+
+  showView('view-loading');
+  document.getElementById('loading-msg').textContent = 'Connecting to server...';
+
+  const ws = new WebSocket(url);
+  wsRef = ws;
+
+  ws.onopen = () => {
+    state.retryCount = 0;
+    hideOfflineBanner();
+  };
+
+  ws.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    switch (msg.event) {
+      case 'connection:ack':
+        showView('view-main');
+        document.getElementById('btn-settings').classList.remove('hidden');
+        if (config.screenName) {
+          document.getElementById('restaurant-name').textContent =
+            config.screenName.toUpperCase();
+        }
+        fetchCurrentOrders();
+        startHeartbeat(ws);
+        break;
+
+      case 'order:new':
+        addOrder(msg.payload);
+        break;
+
+      case 'order:status_changed':
+        handleStatusChange(msg.payload);
+        break;
+
+      case 'display:order_ready':  // AG-003
+        markReady(msg.payload.display_number);
+        speak(`Order ${msg.payload.display_number} is ready for pickup`);
+        scheduleRemove(msg.payload.display_number, 30000);
+        break;
+
+      case 'display:order_remove':  // AG-003
+        removeOrder(msg.payload.display_number);
+        break;
+
+      case 'order:cancelled':  // AG-003
+        cancelOrder(msg.payload.display_number);
+        break;
+    }
+  };
+
+  ws.onclose = () => {
+    stopHeartbeat();
+    state.retryCount++;
+    if (state.retryCount >= 4) {
+      showView('overlay-error');
+      document.getElementById('error-msg').textContent =
+        `Failed to connect after ${state.retryCount} attempts. Check your network.`;
+    } else {
+      // AG-002: 3초 후 자동 재연결
+      let countdown = 3;
+      showOfflineBanner(countdown);
+      retryTimeout = setInterval(() => {
+        countdown--;
+        document.getElementById('retry-countdown').textContent =
+          countdown > 0 ? `Retry in ${countdown}s` : 'Retrying...';
+        if (countdown <= 0) {
+          clearInterval(retryTimeout);
+          connectWS();
+        }
+      }, 1000);
+    }
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function startHeartbeat(ws) {
+  stopHeartbeat();
+  heartbeatInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ event: 'tv:heartbeat', payload: { ts: Date.now() } }));
+    }
+  }, 30000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+  if (retryTimeout)      { clearInterval(retryTimeout);      retryTimeout = null; }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PAIRING FLOW
+// ════════════════════════════════════════════════════════════════════
+async function claimScreen(apiUrl, code) {
+  const res = await fetch(`${apiUrl}/api/screens/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pairing_code: code }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CLOCK
+// ════════════════════════════════════════════════════════════════════
+function startClock() {
+  function tick() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    const el = document.getElementById('clock');
+    if (el) el.textContent = `${h}:${m}:${s}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  OFFLINE DETECTION
+// ════════════════════════════════════════════════════════════════════
+window.addEventListener('online',  () => { hideOfflineBanner(); if (!wsRef || wsRef.readyState > 1) connectWS(); });
+window.addEventListener('offline', () => showOfflineBanner('Network offline'));
+
+// ════════════════════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+
+  // ?reset=1 → 설정 초기화
+  if (new URLSearchParams(location.search).get('reset') === '1') {
+    clearConfig();
+    history.replaceState(null, '', '/');
+  }
+
+  const config = loadConfig();
+
+  if (config) {
+    state.config = config;
+    connectWS();
+  } else {
+    showView('view-pairing');
+    // pre-fill API URL if available
+    const savedUrl = localStorage.getItem(LS_KEYS.apiUrl) || 'http://localhost:3000';
+    document.getElementById('api-url-input').value = savedUrl;
+  }
+
+  // ── Pairing form ──────────────────────────────────────────────────
+  const codeInput  = document.getElementById('code-input');
+  const apiInput   = document.getElementById('api-url-input');
+  const btnClaim   = document.getElementById('btn-claim');
+  const pairError  = document.getElementById('pair-error');
+
+  // 숫자만 입력
+  codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+  });
+
+  btnClaim.addEventListener('click', async () => {
+    const code   = codeInput.value.trim();
+    const apiUrl = (apiInput.value || '').trim().replace(/\/$/, '');
+    pairError.textContent = '';
+
+    if (code.length !== 6) { pairError.textContent = 'Enter a 6-digit code.'; return; }
+    if (!apiUrl)            { pairError.textContent = 'Enter the API server URL.'; return; }
+
+    btnClaim.disabled = true;
+    btnClaim.textContent = 'Connecting...';
+    try {
+      const data = await claimScreen(apiUrl, code);
+      saveConfig({
+        apiUrl,
+        storeId:     data.store_id,
+        screenId:    data.screen_id,
+        deviceToken: data.device_token,
+        role:        data.role,
+        screenName:  data.name || '',
+      });
+      state.config = loadConfig();
+      connectWS();
+    } catch (err) {
+      pairError.textContent = `Error: ${err.message}`;
+      btnClaim.disabled = false;
+      btnClaim.textContent = 'Connect TV';
+    }
+  });
+
+  // Enter key on code input
+  codeInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') btnClaim.click();
+  });
+
+  // ── Retry / Reset buttons ─────────────────────────────────────────
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    state.retryCount = 0;
+    connectWS();
+  });
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    clearConfig();
+    location.href = '/';
+  });
+  document.getElementById('btn-settings').addEventListener('click', () => {
+    if (confirm('Reset TV pairing? You will need to re-enter the pairing code.')) {
+      clearConfig();
+      location.href = '/';
+    }
+  });
+});
+</script>
+</body>
+</html>

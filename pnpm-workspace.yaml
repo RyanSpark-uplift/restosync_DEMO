@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+# Flat node_modules (no .pnpm/<pkg>@<hash>/node_modules nesting). Required on Windows:
+# RN native CMake/ninja builds mirror absolute source paths into object paths, and
+# pnpm's doubled hashed store paths exceed the 260-char limit (ninja 1.10.2 isn't
+# long-path aware). Hoisting keeps native module paths short enough to compile.
+nodeLinker: hoisted
+allowBuilds:
+  bcrypt: true
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true

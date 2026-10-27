@@ -1,0 +1,167 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1778357439794,
+      "tag": "0000_magenta_menace",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778357453889,
+      "tag": "0001_partial-indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778386742878,
+      "tag": "0002_bored_lethal_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1747008000000,
+      "tag": "0003_fix_enum_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1747008060000,
+      "tag": "0004_add_venue_tv_promotions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778813590363,
+      "tag": "0005_bitter_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778813663244,
+      "tag": "0006_pickup_v2_partial_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779000000000,
+      "tag": "0007_daypart_add_snack_late",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779000060000,
+      "tag": "0008_menu_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779000120000,
+      "tag": "0009_stores_i18n_currency",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779000180000,
+      "tag": "0010_menu_items_extend",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779000240000,
+      "tag": "0011_menu_audit_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779000300000,
+      "tag": "0012_menu_items_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779100000000,
+      "tag": "0013_menu_text_enum_check_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1779200000000,
+      "tag": "0014_menu_items_photo_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1779216929510,
+      "tag": "0015_menu_v11_modifiers_variants",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1779300000000,
+      "tag": "0016_menu_ingredients",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1779300060000,
+      "tag": "0017_menu_item_ingredients",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1779400000000,
+      "tag": "0018_menu_import_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1779500000000,
+      "tag": "0019_menu_featured_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1779600000000,
+      "tag": "0020_menu_combos",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1779600060000,
+      "tag": "0021_menu_combo_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1779700000000,
+      "tag": "0022_events_cta_url",
+      "breakpoints": true
+    }
+  ]
+}

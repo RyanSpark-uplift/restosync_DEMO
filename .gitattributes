@@ -1,0 +1,25 @@
+# Normalize line endings: repo stores LF, checkout native.
+# Fixes CRLF carried over from the prior Windows environment.
+* text=auto eol=lf
+
+# Always LF (scripts/configs that break with CRLF)
+*.sh text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+
+# Windows-only scripts keep CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.node binary

@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "RestoSync TV",
+    "slug": "restosync-tv",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0B0D16"
+    },
+    "android": {
+      "package": "com.restosync.tv",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0D16"
+      }
+    },
+    "scheme": "restosync-tv"
+  }
+}

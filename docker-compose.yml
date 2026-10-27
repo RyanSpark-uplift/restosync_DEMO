@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16.4-alpine3.20
+    container_name: restosync-postgres
+    environment:
+      POSTGRES_USER: rs_user
+      POSTGRES_PASSWORD: rs_pass
+      POSTGRES_DB: restosync
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rs_user -d restosync"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine3.20
+    container_name: restosync-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "RestoSync Claude Code settings v2 — 4개 신규 훅 포함 (2026-05)",
+
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /)",
+      "Bash(sudo *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push *--force*)",
+      "Bash(git push *--force-with-lease*)",
+      "Bash(git reset --hard origin/main)",
+      "Bash(git reset --hard origin/master)",
+      "Bash(git clean -fd*)",
+      "Bash(npm publish *)",
+      "Bash(pnpm publish *)",
+      "Bash(curl * | sh)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | sh)",
+      "Bash(dd if=*)",
+      "Bash(mkfs.*)",
+      "Bash(*DROP TABLE*)",
+      "Bash(*TRUNCATE TABLE*)",
+      "Bash(*DELETE FROM * WHERE 1=1*)",
+      "Bash(*psql *prod*)",
+      "Bash(*psql *production*)",
+      "Edit(.env)",
+      "Edit(.env.local)",
+      "Edit(.env.production)",
+      "Edit(**/secrets/**)",
+      "Write(.env)",
+      "Write(.env.production)"
+    ],
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(docker compose *)",
+      "Bash(docker *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(curl http://localhost:*)",
+      "Bash(curl https://api.restosync.com/*)",
+      "Bash(wscat *)"
+    ]
+  },
+
+  "hooks": {
+
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+          "timeout": 10
+        }]
+      }
+    ],
+
+    "PreToolUse": [
+      {
+        "_comment": "★ DENY LIST (가장 강력): RestoSync 회사 패턴 차단 — TIER1 즉시차단+시니어알림, TIER2 경고",
+        "matcher": "Bash|Edit|Write",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/company-deny-list.sh",
+          "timeout": 5
+        }]
+      },
+      {
+        "_comment": "PRE-COMMIT: git commit 직전 Lint · TypeCheck · Test 자동 실행. 실패 시 차단.",
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-commit-lint-test.sh",
+          "timeout": 120
+        }]
+      },
+      {
+        "_comment": "PRE-COMMIT: Sub-Agent PR Review — diff 자동 검토. 보안/AG위반 차단, 성능·컨벤션 경고.",
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-commit-pr-review.sh",
+          "timeout": 30
+        }]
+      },
+      {
+        "_comment": "PRE-WRITE: TDD 강제 — apps/*/src/ 신규 .ts 파일 작성 전 .test.ts 존재 확인. 없으면 차단.",
+        "matcher": "Write|Edit",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-write-tdd-check.sh",
+          "timeout": 5
+        }]
+      },
+      {
+        "_comment": "2차 방어: 위험 bash 명령 차단 (deny list 보완)",
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-bash-guard.sh",
+          "timeout": 5
+        }]
+      },
+      {
+        "_comment": "★ AG-017: 패키지 화이트리스트 — TOOL-REVIEW.md 미등재 패키지 설치 차단",
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-bash-pkg-guard.sh",
+          "timeout": 5
+        }]
+      },
+      {
+        "_comment": "schema enum drift 차단 — AG-016 grubhub/fantuan/hungrypanda 포함 확인",
+        "matcher": "Edit|Write",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-edit-schema-check.sh",
+          "timeout": 5
+        }]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "_comment": "Auto-format (Prettier/ESLint --fix) + TypeCheck + .md 자동 업데이트",
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-format.sh",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-typecheck.sh",
+            "timeout": 60
+          },
+          {
+            "_comment": "MD auto-touch: 코드 변경 → CLAUDE-Mxx.md breadcrumb 자동 추가 (async)",
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-md-touch.sh",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      },
+      {
+        "_comment": "Token monitor — 모든 tool 호출 후 비용 JSONL 기록 (async)",
+        "matcher": "",
+        "hooks": [{
+          "type": "command",
+          "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/token-monitor.sh",
+          "timeout": 5,
+          "async": true
+        }]
+      }
+    ],
+
+    "Stop": [
+      {
+        "_comment": "자동 테스트 루프 — 실패 시 exit 2 → Claude 계속 수정",
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-run-tests.sh",
+            "timeout": 600
+          },
+          {
+            "_comment": "테스트 통과 후 CLAUDE-Mxx.md Current Status 1줄 자동 추가",
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-md-update.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end.sh",
+            "timeout": 30
+          },
+          {
+            "_comment": "HANDOFF.md Last/Next 세션 블록 자동 갱신",
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-md.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+
+  "env": {
+    "RS_TOKEN_BUDGET": "100000",
+    "RS_COST_BUDGET_USD": "3.5",
+    "RS_NOTIFICATION_WEBHOOK": "",
+    "RS_SENIOR_ALERT_WEBHOOK": "",
+    "_comment": "RS_SENIOR_ALERT_WEBHOOK: Slack incoming webhook URL. TIER1 차단 + 보안이슈 발생 시 즉시 알림."
+  }
+}
